@@ -23,6 +23,14 @@ const preloadJS = `file://${remote.app.getAppPath()}/browser/webview/mattermost_
 const ERR_NOT_IMPLEMENTED = -11;
 const U2F_EXTENSION_URL = 'chrome-extension://kmendfapggjehodndflmmgagdbamhnfd/u2f-comms.html';
 
+function extractURL(message) {
+  const matched = message.match(/Not allowed to load local resource:\s*(.+)/);
+  if (matched) {
+    return matched[1];
+  }
+  return '';
+}
+
 export default class MattermostView extends React.Component {
   constructor(props) {
     super(props);
@@ -190,6 +198,16 @@ export default class MattermostView extends React.Component {
 
     webview.addEventListener('console-message', (e) => {
       const message = `[${this.props.name}] ${e.message}`;
+
+      const retryUrl = extractURL(e.message);
+      console.log(`[${this.props.name}] url: ${retryUrl}`);
+      if (retryUrl) {
+        if (!shell.openExternal(decodeURI(retryUrl))) {
+          console.log(`[${this.props.name}] shell.openExternal failed: ${retryUrl}`);
+        }
+        return;
+      }
+
       switch (e.level) {
       case 0:
         console.log(message);
