@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  win: circleci/windows@1.0.0
+  # win: circleci/windows@1.0.0
   aws-s3: circleci/aws-s3@1.0.11
   owasp: entur/owasp@0.0.10
 
@@ -389,7 +389,6 @@ workflows:
   version: 2
   build_and_test:
     jobs:
-      - check
       - begin-notification:
           context: desktop-notify
           filters:
@@ -399,57 +398,12 @@ workflows:
                 # release-XX.YY.ZZ
                 # release-XX.YY.ZZ-rc-something
                 - /^release-\d+(\.\d+){1,2}(-rc.*)?/
-      - build-linux:
-          requires:
-            - check
-      - check-deps:
-          context: sast-webhook
-          requires:
-            - build-linux
-
-      - build-win-no-installer:
-          requires:
-            - check
-          filters:
-            branches:
-              ignore:
-                - /^release-\d+(\.\d+){1,2}(-rc.*)?/
-
-      - build-mac-no-dmg:
-          requires:
-            - check
-          filters:
-            branches:
-              ignore:
-                - /^release-\d+(\.\d+){1,2}(-rc.*)?/
-
-      - msi_installer:
-          requires:
-            - check
-          context: windows-codesign
-          filters:
-            branches:
-              only:
-                # only for release and release candidates
-                # release-XX.YY.ZZ
-                # release-XX.YY.ZZ-rc-something
-                - /^release-\d+(\.\d+){1,2}(-rc.*)?/
-
-      - mac_installer:
-          requires:
-            - check
-          context: codesign-certificates
-          filters:
-            branches:
-              only:
-                - /^release-\d+(\.\d+){1,2}(-rc.*)?/
+      - build-linux
 
       - store_artifacts:
           # for master/PR builds
           requires:
             - build-linux
-            - build-win-no-installer
-            - build-mac-no-dmg
           filters:
             branches:
               ignore:
@@ -458,8 +412,6 @@ workflows:
       - upload_to_s3:
           # for release builds
           requires:
-            - msi_installer
-            - mac_installer
             - build-linux
           context: mattermost-release-s3
           filters:
