@@ -23,12 +23,23 @@ const preloadJS = `file://${remote.app.getAppPath()}/browser/webview/mattermost_
 const ERR_NOT_IMPLEMENTED = -11;
 const U2F_EXTENSION_URL = 'chrome-extension://kmendfapggjehodndflmmgagdbamhnfd/u2f-comms.html';
 
-function extractURL(message) {
+function extractFileURL(message) {
   const matched = message.match(/Not allowed to load local resource:\s*(.+)/);
   if (matched) {
     return matched[1];
   }
   return '';
+}
+
+function isNetworkDrive(fileURL) {
+  const u = url.parse(fileURL);
+  if (u.protocol === 'file:' && u.host) {
+    // Disallow localhost, 127.0.0.1, ::1.
+    if (!u.host.match(/^localhost$|^127\.0\.0\.1$|^\[::1\]$/)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export default class MattermostView extends React.Component {
@@ -199,11 +210,11 @@ export default class MattermostView extends React.Component {
     webview.addEventListener('console-message', (e) => {
       const message = `[${this.props.name}] ${e.message}`;
 
-      const retryUrl = extractURL(e.message);
-      console.log(`[${this.props.name}] url: ${retryUrl}`);
-      if (retryUrl) {
-        if (!shell.openExternal(decodeURI(retryUrl))) {
-          console.log(`[${this.props.name}] shell.openExternal failed: ${retryUrl}`);
+      const fileURL = extractFileURL(e.message);
+      if (isNetworkDrive(fileURL)) {
+        // Network drive: Should be allowed.
+        if (!shell.openExternal(decodeURI(fileURL))) {
+          console.log(`[${this.props.name}] shell.openExternal failed: ${fileURL}`);
         }
         return;
       }
